@@ -1,3 +1,4 @@
+import { setupExtras } from './extras.js';
 import {
   loadCurrentGame,
   saveCurrentGame,
@@ -959,6 +960,11 @@ async function init() {
     document.querySelector('#assist-card')
   );
   if (state.clockRunning && currentClockSeconds() <= 0) setClock(0, false);
+    setupExtras({
+    getState: () => state,
+    stats: playerStats,
+    playerLabel
+  });
   bindEvents();
   render();
   updateNetworkStatus();
