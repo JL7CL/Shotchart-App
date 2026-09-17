@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-shell-v9-laser';
+const CACHE_NAME = 'shotchart-shell-v10-laser-trail';
 
 const APP_SHELL = [
   './',
