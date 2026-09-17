@@ -1,4 +1,5 @@
-const CACHE_NAME = 'shotchart-shell-v5-report-coach';
+const CACHE_NAME = 'shotchart-shell-v8-recovery';
+
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,39 +8,64 @@ const APP_SHELL = [
   './extra.js',
   './db.js',
   './manifest.webmanifest',
-  './icons/icon-180.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-180.png',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(keys => Promise.all(
+        keys
+          .filter(key =>
+            key.startsWith('shotchart-shell-') &&
+            key !== CACHE_NAME
+          )
+          .map(key => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
+  const request = event.request;
+  const url = new URL(request.url);
+
+  if (
+    request.method !== 'GET' ||
+    url.origin !== self.location.origin
+  ) return;
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
+    caches.open(CACHE_NAME).then(async cache => {
+      const cached = await cache.match(request);
       if (cached) return cached;
-      return fetch(event.request)
-        .then(response => {
-          if (response.ok && new URL(event.request.url).origin === self.location.origin) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match('./index.html'));
+
+      try {
+        const response = await fetch(request);
+
+        if (response.ok) {
+          await cache.put(request, response.clone());
+        }
+
+        return response;
+      } catch (error) {
+        if (request.mode === 'navigate') {
+          const page = await cache.match('./index.html');
+          if (page) return page;
+        }
+
+        return Response.error();
+      }
     })
   );
 });
