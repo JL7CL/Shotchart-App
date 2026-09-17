@@ -27,7 +27,7 @@ export function setupExtras({ getState, stats, playerLabel }) {
           Tool
           <select id="coach-tool">
             <option value="pen">Pen</option>
-            <option value="flash">Flash Pen · 3 sec</option>
+            <option value="laser">Laser Pointer</option>
             <option value="erase">Eraser</option>
           </select>
         </label>
@@ -144,6 +144,7 @@ export function setupExtras({ getState, stats, playerLabel }) {
   let pointerId = null;
   let gestureTool = null;
   let history = [];
+  let laserPoint = null;
 
   function rememberBoard() {
     history.push(structuredClone(strokes));
@@ -195,7 +196,31 @@ export function setupExtras({ getState, stats, playerLabel }) {
       context.stroke();
     }
   }
+  function drawLaser(point) {
+    // Redraw the board first to remove the previous pointer.
+    drawBoard();
 
+    if (!point) return;
+
+    context.save();
+
+    const glow = context.createRadialGradient(
+      point.x, point.y, 0,
+      point.x, point.y, 30
+    );
+
+    glow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    glow.addColorStop(0.18, 'rgba(255, 60, 60, 1)');
+    glow.addColorStop(0.45, 'rgba(255, 0, 0, 0.65)');
+    glow.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+    context.fillStyle = glow;
+    context.beginPath();
+    context.arc(point.x, point.y, 30, 0, Math.PI * 2);
+    context.fill();
+
+    context.restore();
+  }
   function boardPoint(event) {
     const rect = canvas.getBoundingClientRect();
 
@@ -244,8 +269,15 @@ export function setupExtras({ getState, stats, playerLabel }) {
     gestureTool = $('#coach-tool').value;
     canvas.setPointerCapture(pointerId);
 
-    rememberBoard();
     const point = boardPoint(event);
+
+    if (gestureTool === 'laser') {
+      laserPoint = point;
+      drawLaser(laserPoint);
+      return;
+    }
+
+    rememberBoard();
 
     if (gestureTool === 'erase') {
       eraseAt(point);
@@ -265,6 +297,11 @@ export function setupExtras({ getState, stats, playerLabel }) {
     if (event.pointerId !== pointerId) return;
 
     const point = boardPoint(event);
+    if (gestureTool === 'laser') {
+      laserPoint = point;
+      drawLaser(laserPoint);
+      return;
+    }
 
     if (gestureTool === 'erase') {
       eraseAt(point);
@@ -279,16 +316,14 @@ export function setupExtras({ getState, stats, playerLabel }) {
     if (event.pointerId !== pointerId) return;
 
     if (activeStroke) {
-      if (gestureTool === 'flash') {
-        activeStroke.expiresAt = Date.now() + 3000;
-      }
-
       strokes.push(activeStroke);
     }
 
     activeStroke = null;
+    laserPoint = null;
     pointerId = null;
     gestureTool = null;
+
     drawBoard();
   }
 
