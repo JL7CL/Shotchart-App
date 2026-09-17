@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-shell-v2-restored';
+const CACHE_NAME = 'shotchart-shell-v3-controls-layout';
 const APP_SHELL = [
   './',
   './index.html',
