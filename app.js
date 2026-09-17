@@ -1,4 +1,4 @@
-import { setupExtras } from './extras.js';
+import { setupExtras } from './extra.js';
 import {
   loadCurrentGame,
   saveCurrentGame,
