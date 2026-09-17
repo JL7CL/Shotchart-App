@@ -327,8 +327,7 @@ function renderShotMarkers() {
   $('#shot-markers').innerHTML = shots.map(event => {
     const x = event.x * 10;
     const y = (50 - event.y) * 10;
-    const mark = event.result === 'Make' ? '✓' : '×';
-    return `<g class="shot-marker ${event.result.toLowerCase()}" transform="translate(${x} ${y})"><circle r="14"></circle><text y="1">${mark}</text></g>`;
+    return `<g class="shot-marker ${event.result.toLowerCase()}" transform="translate(${x} ${y})"><circle r="10"></circle></g>`;
   }).join('');
 }
 
@@ -891,7 +890,52 @@ async function init() {
     .querySelector('#substitute-button')
     .closest('details');
 
-  substitutionMenu.before(advancedMenu);
+    // Replace the advanced dropdown with an on/off switch.
+  const advancedControls = advancedMenu.querySelector('.details-body');
+  advancedControls.id = 'advanced-controls';
+  advancedControls.hidden = true;
+
+  const advancedSwitch = document.createElement('label');
+  advancedSwitch.className = 'advanced-switch';
+  advancedSwitch.innerHTML = `
+    <span>Advanced Analytics</span>
+    <input id="advanced-toggle" type="checkbox" role="switch">
+    <span class="switch-track" aria-hidden="true"></span>
+  `;
+
+  substitutionMenu.before(advancedSwitch);
+  substitutionMenu.after(advancedControls);
+  advancedMenu.remove();
+
+  const playerHeading = document
+    .querySelector('#player-buttons')
+    .previousElementSibling;
+
+  if (playerHeading?.classList.contains('control-label')) {
+    playerHeading.classList.add('standard-player-heading');
+  }
+
+  document.querySelector('#advanced-toggle')
+    .addEventListener('change', event => {
+      // Finish an active sequence before changing modes.
+      if (state.pendingAssist || state.freeThrow) {
+        event.target.checked =
+          document.body.classList.contains('advanced-mode');
+
+        showToast('Finish the assist or free throws first');
+        return;
+      }
+
+      const enabled = event.target.checked;
+
+      document.body.classList.toggle('advanced-mode', enabled);
+      advancedControls.hidden = !enabled;
+
+      state.selectedPlayerId = null;
+      state.pendingShot = null;
+
+      commit();
+    });
 
   // Keep the court and its instruction together.
   const courtWrap = document.querySelector('.court-wrap');
