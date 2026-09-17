@@ -1,9 +1,10 @@
-const CACHE_NAME = 'shotchart-shell-v4-switch-dots';
+const CACHE_NAME = 'shotchart-shell-v5-report-coach';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './extras.js',
   './db.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
