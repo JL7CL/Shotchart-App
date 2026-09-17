@@ -157,7 +157,8 @@ export function setupExtras({ getState, stats, playerLabel }) {
     strokes = strokes.filter(stroke =>
       !stroke.expiresAt || stroke.expiresAt > now
     );
-
+    context.shadowColor = 'transparent';
+    context.shadowBlur = 0;
     context.clearRect(0, 0, canvas.width, canvas.height);
 
     if (background) {
@@ -169,6 +170,11 @@ export function setupExtras({ getState, stats, playerLabel }) {
     for (const stroke of [...strokes, activeStroke].filter(Boolean)) {
       if (!stroke.points.length) continue;
 
+      context.shadowColor = stroke.laser
+        ? '#ff3030'
+        : 'transparent';
+
+      context.shadowBlur = stroke.laser ? 16 : 0;
       context.strokeStyle = stroke.color;
       context.fillStyle = stroke.color;
       context.lineWidth = stroke.width * 2;
