@@ -885,6 +885,35 @@ async function init() {
   state = migrate(await loadCurrentGame());
   savedTeams = await loadSavedTeams();
   setupRestoredFeatures();
+    // Place Advanced Analytics immediately above Substitute.
+  const advancedMenu = document.querySelector('#advanced-menu');
+  const substitutionMenu = document
+    .querySelector('#substitute-button')
+    .closest('details');
+
+  substitutionMenu.before(advancedMenu);
+
+  // Keep the court and its instruction together.
+  const courtWrap = document.querySelector('.court-wrap');
+  const courtStage = document.createElement('div');
+  courtStage.className = 'court-stage';
+
+  courtWrap.prepend(courtStage);
+  courtStage.append(
+    document.querySelector('#court'),
+    document.querySelector('#court-instruction')
+  );
+
+  // Show the selected player's controls below the court.
+  const courtActions = document.createElement('div');
+  courtActions.className = 'court-actions';
+  courtWrap.append(courtActions);
+
+  courtActions.append(
+    document.querySelector('#action-card'),
+    document.querySelector('#free-throw-card'),
+    document.querySelector('#assist-card')
+  );
   if (state.clockRunning && currentClockSeconds() <= 0) setClock(0, false);
   bindEvents();
   render();
