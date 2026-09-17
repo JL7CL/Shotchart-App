@@ -171,7 +171,7 @@ export function setupExtras({ getState, stats, playerLabel }) {
       if (!stroke.points.length) continue;
 
       context.shadowColor = stroke.laser
-        ? '#ff3030'
+        ? '#66d9ff'
         : 'transparent';
 
       context.shadowBlur = stroke.laser ? 16 : 0;
@@ -279,7 +279,7 @@ export function setupExtras({ getState, stats, playerLabel }) {
 
     if (gestureTool === 'laser') {
       activeStroke = {
-        color: '#ff3030',
+        color: '#66d9ff',
         width: 5,
         points: [point],
         expiresAt: null,
