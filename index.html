@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#12385f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ShotChart">
+  <title>Basketball Shot Chart</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="offline-banner" class="offline-banner" hidden>Offline — changes are saved on this iPad</div>
+
+  <header class="scoreboard" aria-label="Game scoreboard">
+    <section class="team-score" id="home-score-card">
+      <button class="team-name" id="home-name" data-team="Home">Home</button>
+      <div class="timeout-dots" id="home-timeouts"></div>
+      <div class="team-meta"><span id="home-fouls">Fouls: 0</span></div>
+    </section>
+    <div class="scoreline"><strong id="home-score">0</strong><span>–</span><strong id="away-score">0</strong></div>
+    <section class="team-score" id="away-score-card">
+      <button class="team-name" id="away-name" data-team="Away">Away</button>
+      <div class="timeout-dots" id="away-timeouts"></div>
+      <div class="team-meta"><span id="away-fouls">Fouls: 0</span></div>
+    </section>
+    <details class="clock-menu">
+      <summary id="clock-summary">Q1 · 09:00</summary>
+      <div class="clock-panel">
+        <div class="button-row two">
+          <button id="clock-toggle" class="primary">▶ Start</button>
+          <button id="clock-reset">Reset</button>
+        </div>
+        <p class="control-label">Adjust seconds</p>
+        <div class="button-row four">
+          <button data-clock-adjust="-10">−10</button>
+          <button data-clock-adjust="-1">−1</button>
+          <button data-clock-adjust="1">+1</button>
+          <button data-clock-adjust="10">+10</button>
+        </div>
+        <p class="control-label">Period length</p>
+        <div class="button-row four">
+          <button data-period-minutes="8">8m</button>
+          <button data-period-minutes="9">9m</button>
+          <button data-period-minutes="10">10m</button>
+          <button data-period-minutes="12">12m</button>
+        </div>
+        <label>Set clock <input id="clock-input" inputmode="numeric" value="09:00" pattern="[0-9]+:[0-5][0-9]"></label>
+        <button id="clock-set" class="full">Set clock</button>
+      </div>
+    </details>
+    <button id="undo-button" class="danger">↩ Undo</button>
+  </header>
+
+  <div class="game-strip">
+    <button id="home-timeout-button">Home timeout</button>
+    <label class="compact-field">Format
+      <select id="game-format"><option>Quarters</option><option>Halves</option></select>
+    </label>
+    <label class="compact-field">Period <select id="period-select"></select></label>
+    <button id="away-timeout-button">Away timeout</button>
+  </div>
+
+  <nav class="tabs" aria-label="App pages">
+    <button class="tab active" data-page="tag">Tag Game</button>
+    <button class="tab" data-page="roster">Roster</button>
+    <button class="tab" data-page="stats">Stats</button>
+    <button class="tab" data-page="log">Game Log</button>
+    <button class="tab" data-page="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section class="page active" id="page-tag">
+      <div class="tag-layout">
+        <div class="court-wrap">
+          <svg id="court" viewBox="0 0 940 500" role="img" aria-label="Basketball court. Tap to record the selected shot.">
+            <rect class="court-floor" x="2" y="2" width="936" height="496" rx="8"/>
+            <g class="court-lines">
+              <line x1="470" y1="2" x2="470" y2="498"/>
+              <circle cx="470" cy="250" r="60"/>
+              <rect x="2" y="125" width="190" height="250"/>
+              <rect x="748" y="125" width="190" height="250"/>
+              <circle cx="192" cy="250" r="60"/>
+              <circle cx="748" cy="250" r="60"/>
+              <line x1="55" y1="220" x2="55" y2="280"/>
+              <line x1="885" y1="220" x2="885" y2="280"/>
+              <circle cx="70" cy="250" r="8"/>
+              <circle cx="870" cy="250" r="8"/>
+              <path d="M 55 35 A 220 220 0 0 1 55 465"/>
+              <path d="M 885 35 A 220 220 0 0 0 885 465"/>
+              <path d="M 55 205 A 45 45 0 0 1 55 295"/>
+              <path d="M 885 205 A 45 45 0 0 0 885 295"/>
+            </g>
+            <g id="shot-markers"></g>
+          </svg>
+          <div id="court-instruction" class="court-instruction">Choose a player and action.</div>
+        </div>
+
+        <aside class="action-panel">
+          <div class="segmented" aria-label="Team to tag">
+            <button data-tag-team="Home" class="active">Home</button>
+            <button data-tag-team="Away">Away</button>
+          </div>
+
+          <details>
+            <summary>Substitute</summary>
+            <div class="details-body">
+              <label>Sub out <select id="sub-out"></select></label>
+              <label>Sub in <select id="sub-in"></select></label>
+              <button id="substitute-button" class="full">Substitute</button>
+            </div>
+          </details>
+
+          <p class="control-label">On court — tap a player</p>
+          <div id="player-buttons" class="player-grid"></div>
+
+          <section id="action-card" class="action-card" hidden>
+            <h3 id="selected-player-name"></h3>
+            <div class="action-grid">
+              <button data-shot="Make|2PT" class="make">Make 2</button>
+              <button data-shot="Miss|2PT">Miss 2</button>
+              <button data-shot="Make|3PT" class="make">Make 3</button>
+              <button data-shot="Miss|3PT">Miss 3</button>
+              <button data-action="FT">Free throws</button>
+              <button data-action="TOV">TOV</button>
+              <button data-action="OREB">OREB</button>
+              <button data-action="DREB">DREB</button>
+              <button data-action="PF">PF</button>
+            </div>
+          </section>
+
+          <section id="free-throw-card" class="action-card" hidden>
+            <h3 id="free-throw-player"></h3>
+            <p id="free-throw-results" class="muted">No attempts yet</p>
+            <div class="button-row two">
+              <button id="ft-make" class="make">Make</button>
+              <button id="ft-miss">Miss</button>
+            </div>
+            <button id="ft-done" class="full primary">Done</button>
+          </section>
+
+          <section id="assist-card" class="action-card" hidden>
+            <h3 id="assist-title">Assist?</h3>
+            <div id="assist-buttons" class="player-grid"></div>
+            <button id="assist-skip" class="full">No assist / Skip</button>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <section class="page" id="page-roster">
+      <div class="section-heading">
+        <div><h2>Teams and rosters</h2><p>Mark up to five starters. Changes save automatically.</p></div>
+        <button id="add-player">+ Add player</button>
+      </div>
+      <div class="roster-teams">
+        <section><label>Home team name <input id="home-name-input"></label><div id="home-roster" class="roster-list"></div></section>
+        <section><label>Away team name <input id="away-name-input"></label><div id="away-roster" class="roster-list"></div></section>
+      </div>
+    </section>
+
+    <section class="page" id="page-stats">
+      <div class="section-heading"><div><h2>Live statistics</h2><p>Calculated from locally stored events.</p></div><label>Team <select id="stats-team"><option>Home</option><option>Away</option></select></label></div>
+      <div id="team-stats" class="stat-cards"></div>
+      <div class="table-wrap"><table><thead><tr><th>Player</th><th>PTS</th><th>FG</th><th>3PT</th><th>FT</th><th>OREB</th><th>DREB</th><th>AST</th><th>PF</th><th>TOV</th></tr></thead><tbody id="player-stats-body"></tbody></table></div>
+    </section>
+
+    <section class="page" id="page-log">
+      <div class="section-heading"><div><h2>Game Log</h2><p>Edit or delete any recorded action away from the live tagging screen.</p></div><label>Filter <select id="log-filter"><option>All</option><option>Shots</option><option>Rebounds</option><option>Assists</option><option>Fouls</option><option>Turnovers</option><option>Timeouts</option></select></label></div>
+      <div id="game-log" class="game-log"></div>
+    </section>
+
+    <section class="page" id="page-settings">
+      <h2>Game and offline storage</h2>
+      <div class="settings-grid">
+        <section class="settings-card">
+          <h3>Timeout allowance</h3>
+          <label>Starting timeouts per team <input id="timeout-total" type="number" min="0" max="20"></label>
+          <button id="timeout-save">Save allowance</button>
+          <button id="add-ot-timeout">Add current OT timeout (+1 each)</button>
+        </section>
+        <section class="settings-card">
+          <h3>Backup</h3>
+          <p>Export a JSON backup after games. It can be imported on this or another device.</p>
+          <button id="export-game">Export game backup</button>
+          <label class="file-button">Import backup<input id="import-game" type="file" accept="application/json"></label>
+        </section>
+        <section class="settings-card">
+          <h3>Current game</h3>
+          <p id="save-status">Saved on this device</p>
+          <button id="new-game" class="danger">Start new game</button>
+        </section>
+        <section class="settings-card">
+          <h3>Installation</h3>
+          <p id="install-status">Checking app installation…</p>
+          <button id="install-button" hidden>Install app</button>
+          <p class="muted">On iPad: Safari → Share → Add to Home Screen.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="edit-dialog">
+    <form id="edit-form" method="dialog">
+      <div class="dialog-heading"><h2>Edit event</h2><button value="cancel" aria-label="Close">✕</button></div>
+      <input id="edit-event-id" type="hidden">
+      <label>Team <select id="edit-team"><option>Home</option><option>Away</option></select></label>
+      <label>Period <select id="edit-period"></select></label>
+      <label>Clock <input id="edit-clock" inputmode="numeric"></label>
+      <label id="edit-player-row">Player <select id="edit-player"></select></label>
+      <div id="edit-specific-fields"></div>
+      <div class="button-row two">
+        <button id="delete-event" type="button" class="danger">Delete</button>
+        <button id="save-event" type="submit" value="save" class="primary">Save edit</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
