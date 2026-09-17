@@ -220,6 +220,18 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="app.js"></script>
+  <script>
+  // Check for updates even if app.js fails to start.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then(registration => registration.update())
+      .catch(error => {
+        console.error('Offline update failed:', error);
+      });
+  }
+</script>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
