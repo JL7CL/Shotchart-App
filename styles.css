@@ -139,3 +139,45 @@ dialog form { display: grid; gap: .7rem; padding: 1rem; }
   .action-panel { order: 1; }
   .section-heading { align-items: start; flex-direction: column; }
 }
+/* Controls beneath the court */
+[hidden] {
+  display: none !important;
+}
+
+.court-stage {
+  position: relative;
+}
+
+.court-actions {
+  margin-top: 0.6rem;
+}
+
+.court-actions .action-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.court-actions .player-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.court-actions .action-card h3 {
+  margin-bottom: 0.4rem;
+}
+
+/* Leave room for action buttons on landscape iPads. */
+@media (min-width: 681px) and (orientation: landscape) {
+  #court {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 46vh;
+    aspect-ratio: 940 / 500;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .court-actions .player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
