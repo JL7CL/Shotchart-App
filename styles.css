@@ -181,3 +181,85 @@ dialog form { display: grid; gap: .7rem; padding: 1rem; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* Sliding Advanced Analytics switch */
+.advanced-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.advanced-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  opacity: 0;
+}
+
+.switch-track {
+  flex: 0 0 46px;
+  height: 26px;
+  border-radius: 20px;
+  background: #aab2bf;
+  transition: background 0.2s;
+}
+
+.switch-track::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 3px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+.advanced-switch input:checked + .switch-track {
+  background: var(--green);
+}
+
+.advanced-switch input:checked + .switch-track::before {
+  transform: translateX(20px);
+}
+
+.advanced-switch input:focus-visible + .switch-track {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* Advanced controls replace standard player controls. */
+.advanced-mode #player-buttons,
+.advanced-mode .standard-player-heading,
+.advanced-mode #action-card {
+  display: none !important;
+}
+
+#advanced-controls {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+/* Court markers: green makes, purple misses. */
+.shot-marker.make circle {
+  fill: #16834b;
+}
+
+.shot-marker.miss circle {
+  fill: #8246af;
+}
+
+.shot-marker circle {
+  stroke: white;
+  stroke-width: 2;
+}
