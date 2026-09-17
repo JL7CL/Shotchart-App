@@ -272,8 +272,15 @@ export function setupExtras({ getState, stats, playerLabel }) {
     const point = boardPoint(event);
 
     if (gestureTool === 'laser') {
-      laserPoint = point;
-      drawLaser(laserPoint);
+      activeStroke = {
+        color: '#ff3030',
+        width: 5,
+        points: [point],
+        expiresAt: null,
+        laser: true
+      };
+
+      drawBoard();
       return;
     }
 
@@ -298,8 +305,11 @@ export function setupExtras({ getState, stats, playerLabel }) {
 
     const point = boardPoint(event);
     if (gestureTool === 'laser') {
-      laserPoint = point;
-      drawLaser(laserPoint);
+      if (activeStroke) {
+        activeStroke.points.push(point);
+      }
+
+      drawBoard();
       return;
     }
 
@@ -316,6 +326,10 @@ export function setupExtras({ getState, stats, playerLabel }) {
     if (event.pointerId !== pointerId) return;
 
     if (activeStroke) {
+      if (gestureTool === 'laser') {
+        activeStroke.expiresAt = Date.now() + 1000;
+      }
+
       strokes.push(activeStroke);
     }
 
