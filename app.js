@@ -960,7 +960,7 @@ async function init() {
     document.querySelector('#assist-card')
   );
   if (state.clockRunning && currentClockSeconds() <= 0) setClock(0, false);
-    setupExtras({
+  setupExtras({
     getState: () => state,
     stats: playerStats,
     playerLabel
