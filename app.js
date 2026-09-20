@@ -1,3 +1,4 @@
+import { installActionTracking } from './action-analytics.js';
 import { setupExtras } from './extra.js';
 import {
   loadCurrentGame,
@@ -1207,7 +1208,21 @@ async function init() {
     playerLabel
   });
   setupQuickSubs();
-  bindEvents();
+    bindEvents();
+
+  const tracking = installActionTracking({
+    getState: () => state,
+    commit,
+    recordEvents,
+    recordPlayerAction,
+    renderRestoredFeatures
+  });
+
+  recordEvents = tracking.recordEvents;
+  recordPlayerAction = tracking.recordPlayerAction;
+  recordFreeThrow = tracking.recordFreeThrow;
+  renderRestoredFeatures = tracking.renderRestoredFeatures;
+
   render();
   updateNetworkStatus();
   await requestPersistentStorage();
