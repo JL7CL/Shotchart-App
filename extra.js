@@ -1,4 +1,7 @@
-import { actionPdfPages } from './action-analytics.js';
+import {
+  buildActionAnalytics,
+  drawActionEfficiency
+} from './action-analytics.js';
 export function setupExtras({ getState, stats, playerLabel }) {
   const $ = selector => document.querySelector(selector);
 
@@ -432,7 +435,12 @@ export function setupExtras({ getState, stats, playerLabel }) {
         );
 
         const pageCount = Math.max(
-          1, Math.ceil(team.players.length / 18)
+          1, 
+          Math.ceil(team.players.length / 18),
+          Math.ceil(
+            buildActionAnalytics(state)
+              .teams[team.team].length / 8
+          )
         );
 
         for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
@@ -476,10 +484,22 @@ export function setupExtras({ getState, stats, playerLabel }) {
             60, 243, 23
           );
 
-          ctx.drawImage(chart, 60, 280, 1120, 596);
+          ctx.drawImage(chart, 60, 320, 560, 298);
           text(
-            'Green: make    Purple: miss    Free throws excluded from court',
-            60, 912, 20
+            'Green: make · Purple: miss',
+            60, 655, 20, 560
+          );
+
+          text(
+            'Free throws excluded from court',
+            60, 685, 20, 560
+          );
+
+          drawActionEfficiency(
+            ctx,
+            state,
+            team.team,
+            pageIndex
           );
 
           const columns = [
@@ -524,9 +544,6 @@ export function setupExtras({ getState, stats, playerLabel }) {
           pages.push(page);
         }
       }
-
-      pages.push(...actionPdfPages(state));
-
       const pdf = makeImagePdf(pages);
 
       if (reportUrl) URL.revokeObjectURL(reportUrl);
