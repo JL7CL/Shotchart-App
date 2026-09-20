@@ -114,8 +114,9 @@ function playerById(id) {
 function playerLabel(id) {
   const player = playerById(id);
   if (!player) return 'Unknown player';
-  const name = player.name.trim() || 'Unnamed';
-  return `#${player.number} · ${name}`;
+
+  const name = String(player.name ?? '').trim();
+  return `#${player.number}${name ? ` · ${name}` : ''}`;
 }
 
 function activePlayers(team) {
@@ -274,16 +275,242 @@ function renderGameControls() {
     : state.period.startsWith('OT') ? `${state.period} timeout already added` : 'Available during overtime';
 }
 
+let showAllPlayers = false;
+let subDraft = new Set();
+let subTeam = null;
+const lineupChecks = new Set();
+
+function hasPlayerDetails(player) {
+  return String(player.number ?? '').trim() !== '' ||
+    Boolean(player.name?.trim());
+}
+
 function renderSubstitution() {
-  const onCourt = activePlayers(state.tagTeam);
-  const bench = benchPlayers(state.tagTeam);
-  $('#sub-out').innerHTML = onCourt.map(player => `<option value="${player.id}">${playerLabel(player.id)}</option>`).join('');
-  $('#sub-in').innerHTML = bench.map(player => `<option value="${player.id}">${playerLabel(player.id)}</option>`).join('');
-  $('#substitute-button').disabled = !onCourt.length || !bench.length;
+  const menu = $('#quick-subs');
+  if (!menu) return;
+
+  const team = state.tagTeam;
+
+  if (!menu.open || subTeam !== team) {
+    subTeam = team;
+    subDraft = new Set(state.onCourt[team]);
+  }
+
+  const roster = state.rosters[team].filter(hasPlayerDetails);
+
+  subDraft = new Set(
+    [...subDraft].filter(id => roster.some(p => p.id === id))
+  );
+
+  $('#quick-sub-title').textContent =
+    `Quick Subs · ${state.names[team]}`;
+
+  $('#quick-sub-count').textContent =
+    `${subDraft.size} of 5 selected`;
+
+  $('#quick-sub-grid').innerHTML = roster.map(p => `
+    <button
+      type="button"
+      data-lineup-id="${escapeHtml(p.id)}"
+      aria-pressed="${subDraft.has(p.id)}"
+      class="${subDraft.has(p.id) ? 'active' : ''}"
+    >
+      ${escapeHtml(playerLabel(p.id))}
+      <br>
+      <small>
+        ${subDraft.has(p.id) ? '✓ On court' : 'Bench'}
+      </small>
+    </button>
+  `).join('');
+
+  $('#substitute-button').disabled = subDraft.size !== 5;
+
+  const heading = $('p.standard-player-heading');
+  if (heading) {
+    heading.textContent = showAllPlayers
+      ? 'All players — tap a player'
+      : 'On court — tap a player';
+  }
+
+  $('#player-view').textContent = showAllPlayers
+    ? 'Show On Court'
+    : 'Show All Players';
+
+  $('#lineup-check').hidden = !lineupChecks.has(team);
+
+  $('#quick-add-team').textContent =
+    `Add player · ${state.names[team]}`;
+}
+
+function applyQuickSubs() {
+  if (subTeam !== state.tagTeam || subDraft.size !== 5) return;
+
+  state.onCourt[subTeam] = [...subDraft];
+  lineupChecks.delete(subTeam);
+
+  $('#quick-subs').open = false;
+  commit('Lineup saved');
+}
+
+function setupQuickSubs() {
+  const menu = $('#substitute-button').closest('details');
+  menu.id = 'quick-subs';
+
+  menu.innerHTML = `
+    <summary id="quick-sub-title">Quick Subs</summary>
+
+    <div class="details-body">
+      <div class="button-row two">
+        <strong id="quick-sub-count" aria-live="polite"></strong>
+        <button type="button" id="clear-lineup">
+          Clear selection
+        </button>
+      </div>
+
+      <div id="quick-sub-grid" class="player-grid"></div>
+
+      <div class="button-row two">
+        <button type="button" id="cancel-lineup">Cancel</button>
+        <button
+          type="button"
+          id="substitute-button"
+          class="primary"
+        >Done</button>
+      </div>
+    </div>
+  `;
+
+  $('#player-buttons').insertAdjacentHTML('beforebegin', `
+    <div class="button-row two standard-player-heading">
+      <button type="button" id="player-view">
+        Show All Players
+      </button>
+      <button type="button" id="open-quick-add">
+        + Add player
+      </button>
+    </div>
+
+    <p id="lineup-check" hidden>
+      Lineup needs checking — open Quick Subs.
+    </p>
+
+    <form id="quick-add-form" hidden>
+      <strong id="quick-add-team"></strong>
+
+      <label>
+        Jersey number
+        <input
+          id="quick-number"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]{1,2}"
+          maxlength="2"
+          required
+          placeholder="e.g. 12"
+        >
+      </label>
+
+      <label>
+        Name (optional)
+        <input id="quick-name" type="text">
+      </label>
+
+      <div class="button-row two">
+        <button type="submit">Add to roster</button>
+        <button type="button" id="cancel-quick-add">
+          Cancel
+        </button>
+      </div>
+    </form>
+  `);
+
+  menu.addEventListener('toggle', () => {
+    if (menu.open) {
+      subTeam = state.tagTeam;
+      subDraft = new Set(state.onCourt[subTeam]);
+    }
+
+    renderSubstitution();
+  });
+
+  $('#quick-sub-grid').addEventListener('click', event => {
+    const button = event.target.closest('[data-lineup-id]');
+    if (!button) return;
+
+    const id = button.dataset.lineupId;
+
+    if (subDraft.has(id)) {
+      subDraft.delete(id);
+    } else {
+      subDraft.add(id);
+    }
+
+    renderSubstitution();
+  });
+
+  $('#clear-lineup').onclick = () => {
+    subDraft.clear();
+    renderSubstitution();
+  };
+
+  $('#cancel-lineup').onclick = () => {
+    menu.open = false;
+  };
+
+  $('#player-view').onclick = () => {
+    showAllPlayers = !showAllPlayers;
+    renderSubstitution();
+    renderPlayerActions();
+  };
+
+  $('#open-quick-add').onclick = () => {
+    $('#quick-add-form').hidden = false;
+    $('#quick-number').focus();
+  };
+
+  $('#cancel-quick-add').onclick = () => {
+    $('#quick-add-form').hidden = true;
+  };
+
+  $('#quick-add-form').addEventListener('submit', event => {
+    event.preventDefault();
+
+    const number = $('#quick-number').value.trim();
+    const team = state.tagTeam;
+
+    if (!/^\d{1,2}$/.test(number)) {
+      return showToast('Enter a jersey number from 0 to 99');
+    }
+
+    const duplicate = state.rosters[team].some(
+      p => String(p.number) === number
+    );
+
+    if (duplicate) {
+      return showToast(
+        'That jersey number is already on this roster'
+      );
+    }
+
+    state.rosters[team].push({
+      id: uid(),
+      number,
+      name: $('#quick-name').value.trim(),
+      starter: false
+    });
+
+    showAllPlayers = true;
+    event.target.reset();
+    event.target.hidden = true;
+
+    commit(`Added #${number} to ${state.names[team]}`);
+  });
 }
 
 function renderPlayerActions() {
-  const players = activePlayers(state.tagTeam);
+  const players = showAllPlayers
+    ? state.rosters[state.tagTeam].filter(hasPlayerDetails)
+    : activePlayers(state.tagTeam);
   $('#player-buttons').innerHTML = players.map(player =>
     `<button data-player-id="${player.id}" class="${state.selectedPlayerId === player.id ? 'active' : ''}">${playerLabel(player.id)}</button>`
   ).join('') || '<p class="muted">Set the lineup in Roster.</p>';
@@ -303,7 +530,7 @@ function renderPlayerActions() {
   $('#assist-card').hidden = !state.pendingAssist;
   if (state.pendingAssist) {
     $('#assist-title').textContent = `Assist for ${playerLabel(state.pendingAssist.shooterId)}?`;
-    $('#assist-buttons').innerHTML = activePlayers(state.pendingAssist.team)
+    $('#assist-buttons').innerHTML = state.rosters[state.pendingAssist.team].filter(hasPlayerDetails)
       .filter(player => player.id !== state.pendingAssist.shooterId)
       .map(player => `<button data-assister-id="${player.id}">${playerLabel(player.id)}</button>`).join('');
   }
@@ -424,6 +651,9 @@ function escapeHtml(value) {
 }
 
 function selectPlayer(playerId) {
+    if (!state.onCourt[state.tagTeam].includes(playerId)) {
+    lineupChecks.add(state.tagTeam);
+  }
   state.selectedPlayerId = state.selectedPlayerId === playerId ? null : playerId;
   state.pendingShot = null;
   commit();
@@ -717,14 +947,10 @@ function bindEvents() {
   }));
   $('#home-timeout-button').addEventListener('click', () => useTimeout('Home'));
   $('#away-timeout-button').addEventListener('click', () => useTimeout('Away'));
-  $('#substitute-button').addEventListener('click', () => {
-    const outgoing = $('#sub-out').value;
-    const incoming = $('#sub-in').value;
-    const index = state.onCourt[state.tagTeam].indexOf(outgoing);
-    if (index >= 0 && incoming) state.onCourt[state.tagTeam][index] = incoming;
-    state.selectedPlayerId = null;
-    commit('Substitution saved');
-  });
+  $('#substitute-button').addEventListener(
+    'click',
+    applyQuickSubs
+  );
 
   $('#player-buttons').addEventListener('click', event => {
     const button = event.target.closest('[data-player-id]');
@@ -763,7 +989,11 @@ function bindEvents() {
     const player = state.rosters[team].find(item => item.id === row.dataset.rosterId);
     if (!player) return;
     const field = event.target.dataset.field;
-    player[field] = field === 'starter' ? event.target.checked : field === 'number' ? Number(event.target.value) : event.target.value;
+    player[field] = field === 'starter'
+      ? event.target.checked
+      : field === 'number'
+        ? event.target.value.trim()
+        : event.target.value;
     if (field === 'starter') {
       const starters = state.rosters[team].filter(item => item.starter && item.name.trim()).slice(0, 5);
       state.rosters[team].forEach(item => { if (!starters.includes(item) && item.starter) item.starter = false; });
@@ -965,6 +1195,7 @@ async function init() {
     stats: playerStats,
     playerLabel
   });
+  setupQuickSubs();
   bindEvents();
   render();
   updateNetworkStatus();
