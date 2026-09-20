@@ -193,6 +193,7 @@ export function buildActionAnalytics(game) {
       }
 
       totals.set(p.action, row);
+    }
 
     return [...totals.values()]
       .map(row => ({
