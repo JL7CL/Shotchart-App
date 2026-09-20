@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-number-only-fix-1';
+const CACHE_NAME = 'shotchart-shell-number-only-fix-2';
 
 const APP_SHELL = [
   './',
