@@ -1,3 +1,4 @@
+import { actionPdfPages } from './action-analytics.js';
 export function setupExtras({ getState, stats, playerLabel }) {
   const $ = selector => document.querySelector(selector);
 
@@ -523,6 +524,8 @@ export function setupExtras({ getState, stats, playerLabel }) {
           pages.push(page);
         }
       }
+
+      pages.push(...actionPdfPages(state));
 
       const pdf = makeImagePdf(pages);
 
