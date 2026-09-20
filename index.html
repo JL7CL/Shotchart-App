@@ -233,5 +233,46 @@
 </script>
 
 <script type="module" src="app.js"></script>
+<script>
+  function showStartupError(message) {
+    let box = document.getElementById('startup-error');
+
+    if (!box) {
+      box = document.createElement('pre');
+      box.id = 'startup-error';
+      box.setAttribute('role', 'alert');
+      box.style.cssText =
+        'background:#fff0f0;color:#8b0000;padding:16px;' +
+        'white-space:pre-wrap;overflow-wrap:anywhere;' +
+        'font:16px sans-serif;border:2px solid #b91c1c;';
+
+      document.body.prepend(box);
+    }
+
+    box.textContent =
+      'ShotChart error — please send a screenshot:\n\n' +
+      message;
+  }
+
+  window.addEventListener('error', function (event) {
+    if (event.message) {
+      showStartupError(
+        event.message + '\n' +
+        (event.filename || '') +
+        (event.lineno ? '\nLine: ' + event.lineno : '')
+      );
+    }
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    const reason = event.reason;
+
+    showStartupError(
+      reason && reason.message
+        ? reason.message
+        : String(reason)
+    );
+  });
+</script>
 </body>
 </html>
