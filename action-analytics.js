@@ -12,6 +12,21 @@ const escape = value => String(value ?? '').replace(
 export function buildActionAnalytics(game) {
   const possessions = [];
   let current = null;
+    const credit = (p, event, points) => {
+    p.points += points;
+
+    const playerId = event.playerId || null;
+    let scorer = p.scorers.find(
+      item => item.playerId === playerId
+    );
+
+    if (!scorer) {
+      scorer = { playerId, points: 0 };
+      p.scorers.push(scorer);
+    }
+
+    scorer.points += points;
+  };
 
   const finish = reason => {
     if (current && !current.closed) {
@@ -39,6 +54,7 @@ export function buildActionAnalytics(game) {
         period: event.period,
         action: '',
         points: 0,
+        scorers: [],
         closed: false,
         awaitingFT: false
       };
@@ -122,7 +138,7 @@ export function buildActionAnalytics(game) {
 
         p.awaitingFT = !event.ftLast;
 
-        if (event.result === 'Make') p.points += 1;
+        if (event.result === 'Make') credit(p, event, 1);
 
         if (event.ftLast) {
           p.closed = event.result === 'Make';
@@ -136,7 +152,7 @@ export function buildActionAnalytics(game) {
       const p = ensure(event);
 
       if (event.result === 'Make') {
-        p.points += event.shotType === '3PT' ? 3 : 2;
+        credit(p, event, event.shotType === '3PT' ? 3 : 2);
         p.scorerId = event.playerId;
         finish('Basket');
       }
@@ -157,14 +173,26 @@ export function buildActionAnalytics(game) {
       const row = totals.get(p.action) || {
         action: p.action,
         count: 0,
-        points: 0
+        points: 0,
+        scorers: []
       };
 
       row.count++;
       row.points += p.points;
 
+      for (const scorer of p.scorers) {
+        const existing = row.scorers.find(
+          item => item.playerId === scorer.playerId
+        );
+
+        if (existing) {
+          existing.points += scorer.points;
+        } else {
+          row.scorers.push({ ...scorer });
+        }
+      }
+
       totals.set(p.action, row);
-    }
 
     return [...totals.values()]
       .map(row => ({
@@ -223,7 +251,82 @@ function actionRating(row, average) {
   };
 }
 
-function chartMarkup(rows, max) {
+function scorerBreakdown(row, game) {
+  if (!row.points) {
+    return '<p>No points scored on these possessions.</p>';
+  }
+
+  const players = [
+    ...game.rosters.Home,
+    ...game.rosters.Away
+  ];
+
+  const scorers = [...row.scorers].sort(
+    (a, b) => b.points - a.points
+  );
+
+  return `
+    <table style="
+      width:100%;
+      margin-top:12px;
+      border-collapse:collapse
+    ">
+      <thead>
+        <tr>
+          <th style="text-align:left">Scorer</th>
+          <th>Points</th>
+          <th>Share</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${scorers.map(scorer => {
+          const player = players.find(
+            p => p.id === scorer.playerId
+          );
+
+          const label = player
+            ? `#${player.number}${
+                player.name?.trim()
+                  ? ' · ' + player.name.trim()
+                  : ''
+              }`
+            : 'Unknown player';
+
+          return `
+            <tr>
+              <td style="
+                padding:8px 0;
+                overflow-wrap:anywhere
+              ">
+                ${escape(label)}
+              </td>
+
+              <td style="text-align:center">
+                ${scorer.points}
+              </td>
+
+              <td style="text-align:center">
+                ${
+                  (
+                    scorer.points / row.points * 100
+                  ).toFixed(0)
+                }%
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+
+    <p class="muted">
+      Points from completed possessions assigned to this
+      action, including linked free throws.
+    </p>
+  `;
+}
+
+function chartMarkup(rows, max, game, scope) {
   if (!rows.length) {
     return '<p>No completed tagged possessions yet.</p>';
   }
@@ -232,48 +335,49 @@ function chartMarkup(rows, max) {
 
   return `
     <div style="width:100%;max-width:520px">
+      <p class="muted">
+        Tap an action to see its scorers.
+      </p>
   ` + rows.map(row => {
     const rating = actionRating(row, average);
 
     return `
-      <div style="margin:16px 0">
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          gap:12px;
-          flex-wrap:wrap
-        ">
-          <span>
-            <strong>${escape(row.action)}</strong>
-            · ${row.count} possessions
-          </span>
+      <details
+        data-action-key="${
+          escape(JSON.stringify([scope, row.action]))
+        }"
+        style="margin:16px 0"
+      >
+        <summary style="padding:10px 0;cursor:pointer">
+          <strong>${escape(row.action)}</strong>
+          · ${row.count} possessions
+          · <strong>${row.ppp.toFixed(2)} PPP</strong>
 
-          <strong>${row.ppp.toFixed(2)} PPP</strong>
-        </div>
+          <div
+            role="img"
+            aria-label="${escape(row.action)}:
+              ${row.ppp.toFixed(2)} PPP,
+              ${rating.label}"
+            style="
+              height:14px;
+              background:#e5e7eb;
+              border-radius:4px;
+              margin:8px 0;
+              overflow:hidden
+            "
+          >
+            <div style="
+              height:100%;
+              width:${row.ppp / max * 100}%;
+              background:${rating.color}
+            "></div>
+          </div>
 
-        <div
-          role="img"
-          aria-label="${escape(row.action)}:
-            ${row.ppp.toFixed(2)} PPP,
-            ${rating.label},
-            ${row.count} possessions"
-          style="
-            height:14px;
-            background:#e5e7eb;
-            border-radius:4px;
-            margin-top:6px;
-            overflow:hidden
-          "
-        >
-          <div style="
-            height:100%;
-            width:${row.ppp / max * 100}%;
-            background:${rating.color}
-          "></div>
-        </div>
+          <small>${rating.label}</small>
+        </summary>
 
-        <small>${rating.label}</small>
-      </div>
+        ${scorerBreakdown(row, game)}
+      </details>
     `;
   }).join('') + `
       <p class="muted">
@@ -299,7 +403,7 @@ export function renderActionCharts(game) {
         PPP = points per completed possession,
         including linked free throws.
       </p>
-    ` + chartMarkup(data.teams[team], data.max);
+    ` + chartMarkup(data.teams[team], data.max, game, 'stats:' + team);
   }
 
   let report = document.querySelector('#report-action-charts');
@@ -314,7 +418,7 @@ export function renderActionCharts(game) {
     report.innerHTML = '<h3>Action efficiency</h3>' +
       ['Home', 'Away'].map(team => `
         <h4>${escape(game.names[team])}</h4>
-        ${chartMarkup(data.teams[team], data.max)}
+        ${chartMarkup(data.teams[team], data.max, game, 'report:' + team)}
       `).join('');
   }
 
@@ -418,6 +522,44 @@ export function installActionTracking({
   renderRestoredFeatures: originalRender
 }) {
   const $ = selector => document.querySelector(selector);
+    let basicPlayerId = null;
+
+  $('#selected-player-name').insertAdjacentHTML(
+    'afterend',
+    `
+      <label>
+        Action (optional)
+        <select id="basic-shot-action">
+          <option value="">No action tag</option>
+          <option value="PNR">Pick & Roll</option>
+          <option value="ISO">Isolation</option>
+          <option value="POST">Post-up</option>
+          <option value="DHO">Dribble handoff</option>
+          <option value="TRANSITION">Transition</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </label>
+    `
+  );
+
+  $('#basic-shot-action').onchange = () => {
+    const game = getState();
+    const action = $('#basic-shot-action').value;
+
+    if (game.pendingShot) {
+      if (action) {
+        game.pendingShot.advanced = {
+          action,
+          primaryPlayerId: game.pendingShot.playerId,
+          secondaryPlayerId: ''
+        };
+      } else {
+        delete game.pendingShot.advanced;
+      }
+    }
+
+    commit();
+  };
 
   const recordEvents = (events, message) => originalRecord(
     events.map(e => ({
@@ -473,11 +615,39 @@ export function installActionTracking({
   };
 
   const recordPlayerAction = action => {
-    if (action !== 'FT') return originalAction(action);
+    const game = getState();
+    const playerId = game.selectedPlayerId;
+    const tag = $('#basic-shot-action').value;
 
-    if (getState().selectedPlayerId) {
-      startFT(getState().selectedPlayerId);
+    const details = tag ? {
+      action: tag,
+      primaryPlayerId: playerId,
+      secondaryPlayerId: ''
+    } : null;
+
+    if (action === 'FT' && playerId) {
+      return startFT(playerId, details);
     }
+
+    if (action === 'TOV' && playerId && details) {
+      recordEvents([
+        {
+          kind: 'possession',
+          ...details,
+          playerId,
+          outcome: 'Turnover'
+        },
+        {
+          kind: 'turnover',
+          playerId
+        }
+      ], 'Turnover recorded');
+
+      game.selectedPlayerId = null;
+      return commit();
+    }
+
+    return originalAction(action);
   };
 
   $('#ft-mode').onchange = () => {
@@ -657,6 +827,23 @@ export function installActionTracking({
   );
 
   const renderRestoredFeatures = () => {
+    const opened = new Set(
+      [
+        ...document.querySelectorAll(
+          'details[data-action-key][open]'
+        )
+      ].map(item => item.dataset.actionKey)
+    );
+
+    const selected = getState().selectedPlayerId;
+
+    if (selected !== basicPlayerId) {
+      $('#basic-shot-action').value =
+        getState().pendingShot?.advanced?.action || '';
+
+      basicPlayerId = selected;
+    }
+
     originalRender();
 
     const trip = getState().freeThrow;
@@ -683,6 +870,11 @@ export function installActionTracking({
     }
 
     renderActionCharts(getState());
+        document.querySelectorAll(
+      'details[data-action-key]'
+    ).forEach(item => {
+      item.open = opened.has(item.dataset.actionKey);
+    });
   };
 
   return {
