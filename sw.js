@@ -1,10 +1,11 @@
-const CACHE_NAME = 'shotchart-shell-number-only-fix-2';
+const CACHE_NAME = 'shotchart-shell-action-ppp-1';
 
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './action-analytics.js',
   './extra.js',
   './db.js',
   './manifest.webmanifest',
