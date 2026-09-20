@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-shell-report-layout-2';
+const CACHE_NAME = 'shotchart-shell-action-scorers-1';
 
 const APP_SHELL = [
   './',
