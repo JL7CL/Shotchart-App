@@ -189,53 +189,101 @@ export function buildActionAnalytics(game) {
   return { teams, max, current, possessions };
 }
 
+function actionBaseline(rows) {
+  const count = rows.reduce(
+    (sum, row) => sum + row.count, 0
+  );
+
+  return count
+    ? rows.reduce((sum, row) => sum + row.points, 0) / count
+    : 0;
+}
+
+function actionRating(row, average) {
+  const value = Math.round(row.ppp * 100);
+  const baseline = Math.round(average * 100);
+
+  if (value > baseline) {
+    return {
+      label: 'Above team avg',
+      color: '#15803d'
+    };
+  }
+
+  if (value < baseline) {
+    return {
+      label: 'Below team avg',
+      color: '#b91c1c'
+    };
+  }
+
+  return {
+    label: 'At team avg',
+    color: '#64748b'
+  };
+}
+
 function chartMarkup(rows, max) {
   if (!rows.length) {
     return '<p>No completed tagged possessions yet.</p>';
   }
 
-  return rows.map(row => `
-    <div style="margin:16px 0">
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        gap:12px;
-        flex-wrap:wrap
-      ">
-        <span>
-          <strong>${escape(row.action)}</strong>
-          · ${row.count}
-          possession${row.count === 1 ? '' : 's'}
-        </span>
+  const average = actionBaseline(rows);
 
-        <strong>${row.ppp.toFixed(2)} PPP</strong>
-      </div>
+  return `
+    <div style="width:100%;max-width:520px">
+  ` + rows.map(row => {
+    const rating = actionRating(row, average);
 
-      <div
-        role="img"
-        aria-label="${escape(row.action)}:
-          ${row.ppp.toFixed(2)} points per possession,
-          ${row.count} possessions"
-        style="
-          height:18px;
-          background:#e5e7eb;
-          border-radius:4px;
-          margin-top:6px;
-          overflow:hidden
-        "
-      >
+    return `
+      <div style="margin:16px 0">
         <div style="
-          height:100%;
-          width:${row.ppp / max * 100}%;
-          background:#2563eb
-        "></div>
+          display:flex;
+          justify-content:space-between;
+          gap:12px;
+          flex-wrap:wrap
+        ">
+          <span>
+            <strong>${escape(row.action)}</strong>
+            · ${row.count} possessions
+          </span>
+
+          <strong>${row.ppp.toFixed(2)} PPP</strong>
+        </div>
+
+        <div
+          role="img"
+          aria-label="${escape(row.action)}:
+            ${row.ppp.toFixed(2)} PPP,
+            ${rating.label},
+            ${row.count} possessions"
+          style="
+            height:14px;
+            background:#e5e7eb;
+            border-radius:4px;
+            margin-top:6px;
+            overflow:hidden
+          "
+        >
+          <div style="
+            height:100%;
+            width:${row.ppp / max * 100}%;
+            background:${rating.color}
+          "></div>
+        </div>
+
+        <small>${rating.label}</small>
       </div>
+    `;
+  }).join('') + `
+      <p class="muted">
+        Team average: ${average.toFixed(2)} PPP
+        across completed tagged possessions.
+        <br>
+        Scale: 0–${max.toFixed(1)} PPP
+        · Same scale for both teams.
+      </p>
     </div>
-  `).join('') + `
-    <p class="muted">
-      Scale: 0–${max.toFixed(1)} PPP
-      · Same scale for both teams.
-    </p>
   `;
 }
 
@@ -288,91 +336,78 @@ export function renderActionCharts(game) {
   }
 }
 
-export function actionPdfPages(game) {
+export function drawActionEfficiency(
+  ctx, game, team, pageIndex = 0
+) {
   const data = buildActionAnalytics(game);
-  const pages = [];
+  const rows = data.teams[team];
+  const average = actionBaseline(rows);
 
-  for (const team of ['Home', 'Away']) {
-    const rows = data.teams[team];
-    const count = Math.max(1, Math.ceil(rows.length / 12));
+  const visible = rows.slice(
+    pageIndex * 8,
+    pageIndex * 8 + 8
+  );
 
-    for (let index = 0; index < count; index++) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1240;
-      canvas.height = 1754;
+  const x = 660;
+  const width = 520;
 
-      const ctx = canvas.getContext('2d');
+  const text = (value, y, size = 21) => {
+    ctx.fillStyle = '#1d2633';
+    ctx.font = `${size}px sans-serif`;
+    ctx.fillText(String(value), x, y, width);
+  };
 
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 1240, 1754);
+  ctx.save();
 
-      const text = (
-        value, x, y, size = 25, width = 1100
-      ) => {
-        ctx.fillStyle = '#172033';
-        ctx.font = `${size}px sans-serif`;
-        ctx.fillText(String(value), x, y, width);
-      };
+  text('Action efficiency', 300, 28);
+  text(`Team average: ${average.toFixed(2)} PPP`, 333);
 
-      text(
-        `${game.names[team]} — Action efficiency`,
-        60, 90, 38
-      );
+  visible.forEach((row, index) => {
+    const y = 375 + index * 60;
+    const rating = actionRating(row, average);
 
-      text(
-        'PPP = points per completed possession, including linked free throws.',
-        60, 140, 23
-      );
+    text(
+      `${row.action} · ${row.count} poss · ` +
+      `${row.ppp.toFixed(2)} PPP`,
+      y
+    );
 
-      text(
-        'Tagged possessions recorded after the tracking update.',
-        60, 180, 23
-      );
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(x, y + 9, width, 12);
 
-      rows.slice(index * 12, index * 12 + 12)
-        .forEach((row, i) => {
-          const y = 260 + i * 110;
+    ctx.fillStyle = rating.color;
+    ctx.fillRect(
+      x,
+      y + 9,
+      width * row.ppp / data.max,
+      12
+    );
 
-          text(
-            `${row.action} · ${row.count} possessions`,
-            60, y, 26, 850
-          );
+    text(rating.label, y + 42, 18);
+  });
 
-          text(
-            `${row.ppp.toFixed(2)} PPP`,
-            960, y, 26, 220
-          );
-
-          ctx.fillStyle = '#e5e7eb';
-          ctx.fillRect(60, y + 18, 1120, 24);
-
-          ctx.fillStyle = '#2563eb';
-          ctx.fillRect(
-            60, y + 18,
-            1120 * row.ppp / data.max,
-            24
-          );
-        });
-
-      if (!rows.length) {
-        text('No completed tagged possessions yet.', 60, 260);
-      }
-
-      text(
-        `Scale: 0–${data.max.toFixed(1)} PPP · Same scale for both teams`,
-        60, 1640, 23
-      );
-
-      text(
-        `Action report · ${index + 1}/${count}`,
-        60, 1700, 21
-      );
-
-      pages.push(canvas);
-    }
+  if (!visible.length) {
+    text(
+      rows.length
+        ? 'All actions shown on earlier pages.'
+        : 'No completed tagged possessions yet.',
+      375
+    );
   }
 
-  return pages;
+  text(
+    `Scale: 0–${data.max.toFixed(1)} PPP`,
+    885,
+    18
+  );
+
+  text(
+    'Completed tagged possessions; linked FTs included.',
+    914,
+    18
+  );
+
+  ctx.restore();
 }
 
 export function installActionTracking({
