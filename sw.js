@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-shell-v11-blue-laser';
+const CACHE_NAME = 'shotchart-quick-subs-20260920';
 
 const APP_SHELL = [
   './',
