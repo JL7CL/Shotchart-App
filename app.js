@@ -860,8 +860,17 @@ function setupRestoredFeatures() {
       const recorded = state.events.some(e => e.team === team);
       const archived = recorded ? state.rosters[team].map(p => ({...p, starter:false})) : [];
       state.rosters[team] = [...archived, ...incoming];
-      state.onCourt[team] = incoming.filter(p => p.starter && p.name.trim()).slice(0,5).map(p => p.id);
-      if (!state.onCourt[team].length) state.onCourt[team] = incoming.filter(p => p.name.trim()).slice(0,5).map(p => p.id);
+      state.onCourt[team] = incoming
+        .filter(p => p.starter && hasPlayerDetails(p))
+        .slice(0, 5)
+        .map(p => p.id);
+
+      if (!state.onCourt[team].length) {
+        state.onCourt[team] = incoming
+          .filter(hasPlayerDetails)
+          .slice(0, 5)
+          .map(p => p.id);
+      }
       state.names[team] = saved.name;
       state.selectedPlayerId = null; state.pendingShot = null;
       commit('Team loaded');
@@ -995,7 +1004,9 @@ function bindEvents() {
         ? event.target.value.trim()
         : event.target.value;
     if (field === 'starter') {
-      const starters = state.rosters[team].filter(item => item.starter && item.name.trim()).slice(0, 5);
+      const starters = state.rosters[team]
+        .filter(item => item.starter && hasPlayerDetails(item))
+        .slice(0, 5);
       state.rosters[team].forEach(item => { if (!starters.includes(item) && item.starter) item.starter = false; });
       state.onCourt[team] = starters.map(item => item.id);
     }
