@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shotchart-shell-scorer-brace-fix-1';
+const CACHE_NAME = 'shotchart-shell-startup-diagnostic-1';
 
 const APP_SHELL = [
   './',
