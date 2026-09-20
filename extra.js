@@ -413,7 +413,10 @@ export function setupExtras({ getState, stats, playerLabel }) {
         name: state.names[team],
         total: stats(team),
         players: state.rosters[team]
-          .filter(player => player.name.trim())
+          .filter(player =>
+            String(player.number ?? '').trim() !== '' ||
+            Boolean(player.name?.trim())
+          )
           .map(player => ({
             label: playerLabel(player.id),
             ...stats(team, player.id)
