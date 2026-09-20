@@ -969,7 +969,21 @@ function bindEvents() {
   $$('.action-grid [data-shot]').forEach(button => button.addEventListener('click', () => {
     if (!state.selectedPlayerId) return;
     const [result, shotType] = button.dataset.shot.split('|');
-    state.pendingShot = { playerId: state.selectedPlayerId, result, shotType };
+    const action = $('#basic-shot-action').value;
+
+    state.pendingShot = {
+      playerId: state.selectedPlayerId,
+      result,
+      shotType,
+
+      ...(action ? {
+        advanced: {
+          action,
+          primaryPlayerId: state.selectedPlayerId,
+          secondaryPlayerId: ''
+        }
+      } : {})
+    };
     commit();
   }));
   $$('.action-grid [data-action]').forEach(button => button.addEventListener('click', () => recordPlayerAction(button.dataset.action)));
