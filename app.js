@@ -123,7 +123,7 @@ function activePlayers(team) {
   return state.onCourt[team]
     .map(playerById)
     .filter(Boolean)
-    .filter(player => player.name.trim());
+    .filter(player => hasPlayerDetails(player));
 }
 
 function benchPlayers(team) {
